@@ -4,6 +4,13 @@ from kafka.conn import DEFAULT_SOCKET_TIMEOUT_SECONDS
 import logging
 
 
+class KafkaLoggingFilter(logging.Filter):
+
+    def filter(self, record):
+        # drop kafka logging to avoid infinite recursion
+        return not record.name.startswith('kafka'):
+
+
 class KafkaLoggingHandler(logging.Handler):
 
     def __init__(self, hosts_list, topic, timeout_secs=DEFAULT_SOCKET_TIMEOUT_SECONDS, **kwargs):
@@ -17,11 +24,9 @@ class KafkaLoggingHandler(logging.Handler):
             self.producer = SimpleProducer(self.kafka_client, **kwargs)
         else:
             self.producer = KeyedProducer(self.kafka_client, **kwargs)
+        self.addFilter(KafkaLoggingFilter())
 
     def emit(self, record):
-        # drop kafka logging to avoid infinite recursion
-        if record.name == 'kafka':
-            return
         try:
             # use default formatting
             msg = self.format(record)
